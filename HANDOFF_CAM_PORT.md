@@ -18,8 +18,8 @@
   驱动会自动探测，不需要因型号确认而替换公共相机实现。
 - 屏幕：**2 寸 240x320**。分辨率与现有 CAM 变体一致，保留当前 ST7789
   配置；用户尚未确认控制器和 IPS/非 IPS，仍须验证显示范围、颜色及方向。
-- 相机暂保留 RGB565 VGA、水平镜像关闭、垂直翻转关闭；传感器型号不能决定
-  模组安装方向，待实际画面决定是否调整构建选项。
+- 相机使用 RGB565 VGA、水平镜像关闭；实测画面上下颠倒，已将当前 CAM
+  变体的垂直翻转设为开启，待刷写后复测。
 - 核心板已读到 **ESP32-S3 revision v0.2、16 MB Flash、8 MB PSRAM**。
   PCB 版本/丝印、供电控制及充电/电量电路仍待核对。
 
@@ -109,8 +109,8 @@
 
 2026-10-04 已将本项目与本地厂商 2.2.6 的同路径文件逐一比较。CAM 板级文件为 `main/boards/bread-compact-wifi-s3cam/compact_wifi_board_s3cam.cc`，已确认：
 
-- 本项目使用 `FRAMESIZE_VGA`；厂商使用 `FRAMESIZE_QVGA`，另调用 `SetHMirror(false)`、`SetVFlip(1)`。是否改分辨率和方向必须依据实测。
-- 本项目已提供 `camera_hmirror`、`camera_vflip` 构建选项，当前 CAM 变体均为 `false`。`scripts/build.py` 会生成对应 Kconfig 设置，公共相机实现负责应用；方向调整优先复用这条链路。
+- 本项目使用 `FRAMESIZE_VGA`；厂商使用 `FRAMESIZE_QVGA`，另调用 `SetHMirror(false)`、`SetVFlip(1)`。本项目已依据实测将当前 CAM 变体设为 `camera_vflip=true`，水平镜像保持关闭。
+- 本项目已提供 `camera_hmirror`、`camera_vflip` 构建选项。`scripts/build.py` 会生成对应 Kconfig 设置，公共相机实现负责应用；方向调整优先复用这条链路。
 - 厂商添加 `PowerManager`、电量/充电检测、背光休眠和深睡眠；本项目的 CAM 板级尚未接入这些功能，但已有公共 `PowerSaveTimer` 可供复用。
 - 两份 `config.h` 的差异只有空行，源码中的基础引脚定义一致；实物 PCB 匹配仍待验证。
 - 板级文件另有 include 和格式差异，不整体移植这些差异。
@@ -245,6 +245,8 @@ python -m esptool --chip esp32s3 --port /dev/cu.usbserial-10 --baud 115200 \
   `ST7789 240x320`，偏移 `0,0`，镜像和交换坐标关闭。
 - 相机再次确认 `PID=0x3660`（OV3660），板级日志报告 `hmirror=0`、
   `vflip=0`、采集尺寸 **640x480**、RGB565、XCLK 20 MHz；相机初始化成功。
+  后续实拍发现画面上下颠倒，已将当前变体的 `camera_vflip` 改为 `true`，
+  需要重新刷写后复测。
 - 显示 LVGL、2 MB PSRAM 图像缓存、背光 75%、simplex 音频通道和
   `self.camera.take_photo` MCP 工具均初始化成功。该串口日志证明驱动初始化，
   不能替代肉眼确认屏幕颜色、范围和方向，也不能替代实际拍照上传质量测试。
@@ -254,6 +256,15 @@ python -m esptool --chip esp32s3 --port /dev/cu.usbserial-10 --baud 115200 \
 - 当前仍待做：肉眼屏幕验收、按键/录音/播放、实际拍照与连续拍照、
   拍照和语音并行，以及电池/充电电路验证。刷写和启动验证已完成，
   不能把这些未做的项目标记为通过。
+
+### 相机方向修正（2026-10-04）
+
+- 实机拍照确认画面上下颠倒；根因对应模组安装方向，已在
+  `main/boards/bread-compact-wifi-s3cam/config.json` 将
+  `camera_vflip` 改为 `true`，`camera_hmirror` 仍为 `false`。
+- 已重新构建并仅刷写应用分区；启动日志确认 `Camera sensor` 报告
+  `hmirror=0, vflip=1`，相机和联网初始化正常。仍需以实际拍照画面确认
+  上下方向已经恢复。
 
 ### 已验证的 CAM 构建结果
 
@@ -278,7 +289,7 @@ LVGL **9.5.0**、esp_lvgl_port **2.9.0**。生成的依赖锁文件保持为构�
 仍有 1,341,168 字节（约 32%）余量。构建确认只导出一个 `create_board()`。
 
 生成配置为 ESP32-S3、16 MB Flash、80 MHz Octal PSRAM、ST7789 240x320、
-AFE 唤醒和音频处理，相机水平镜像/垂直翻转均关闭。
+AFE 唤醒和音频处理，相机水平镜像关闭、垂直翻转开启（依据实测画面）。
 生成的 `flasher_args.json` 指定烧录参数为 **DIO / 80 MHz / 16 MB**，
 与 SDK 用于运行时初始化的 `CONFIG_ESPTOOLPY_FLASHMODE_QIO=y` 区分。
 烧录布局为 bootloader `0x0`、分区表 `0x8000`、OTA 初始数据 `0xd000`、
