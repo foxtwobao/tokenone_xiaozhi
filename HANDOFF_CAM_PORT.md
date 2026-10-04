@@ -208,7 +208,52 @@ python3 scripts/build.py bread-compact-wifi-s3cam --name bread-compact-wifi-s3ca
 - 观察到一次 `cam_hal: EV-EOF-OVF`。暂不判定为持续故障，后续通过连续拍照
   和拍照/语音并行验证其是否重现。
 - 原始启动日志暂存 `/tmp/tokenone-cam-existing-boot.log`（含网络及设备标识，
-  不提交仓库）。本次仅执行识别和串口读取，**未写入 Flash**。
+  不提交仓库）。该阶段仅执行识别和串口读取；后续刷写结果见下文。
+
+### 原固件备份（2026-10-04）
+
+- 用户指示继续开工后，已完整备份设备 16 MB Flash 到：
+  `/Users/hulei/Projects/xiaozhi/device-backups/2026-10-04-cam/original-flash-16mb.bin`。
+  文件包含原固件、资源、NVS 和设备身份，不提交仓库；备份目录权限为 700，
+  二进制备份权限为 600。
+- 备份文件大小为 16,777,216 字节，设备整片 Flash MD5 与备份 MD5 一致：
+  `f846de4409aaf4288b604870e3ff4a6b`。SHA-256：
+  `9dd992ba6cc95bedf4966a4ea5ad745df24ae61628407d8b44c57fa250968e04`。
+- 连续读取在 460800/230400 波特率下丢包，115200 下也偶有丢包。
+  最终使用本地只读工具以 64 KB 分块、逐块 MD5 核验和重试；
+  空白块经设备 MD5 确认为全 `0xff`，最终再核对整片 MD5。
+  工具和 `backup-manifest.json` 保存在同一备份目录。
+- 原分区表与新构建分区表逐字节一致。烧录采用 `flasher_args.json` 中的
+  独立分区文件，不写入 NVS `0x9000..0xcfff` 和 PHY `0xf000..0xffff`，
+  不用会跨越这些区域的合并固件覆盖配网及身份数据。
+- 回退时可在加载 ESP-IDF 环境后执行下列命令；该操作恢复备份时的完整状态：
+
+```sh
+python -m esptool --chip esp32s3 --port /dev/cu.usbserial-10 --baud 115200 \
+  write-flash --flash-mode keep --flash-freq keep --flash-size keep \
+  0x0 /Users/hulei/Projects/xiaozhi/device-backups/2026-10-04-cam/original-flash-16mb.bin
+```
+
+### 本分支实机刷写与启动（2026-10-04）
+
+- 备份完成后，按 `build/flasher_args.json` 分区写入本分支固件：
+  bootloader `0x0`、分区表 `0x8000`、OTA 初始数据 `0xd000`、
+  应用 `0x20000`、资源 `0x800000`。NVS 和 PHY 区域未写入。
+- esptool 对每个写入文件均报告 `Hash of data verified`；刷写后设备正常复位。
+  启动日志暂存 `/tmp/tokenone-cam-new-boot.log`，不提交仓库。
+- 新固件确认运行 `xiaozhi 2.5.1`、`ESP-IDF v6.1`，板级初始化打印：
+  `ST7789 240x320`，偏移 `0,0`，镜像和交换坐标关闭。
+- 相机再次确认 `PID=0x3660`（OV3660），板级日志报告 `hmirror=0`、
+  `vflip=0`、采集尺寸 **640x480**、RGB565、XCLK 20 MHz；相机初始化成功。
+- 显示 LVGL、2 MB PSRAM 图像缓存、背光 75%、simplex 音频通道和
+  `self.camera.take_photo` MCP 工具均初始化成功。该串口日志证明驱动初始化，
+  不能替代肉眼确认屏幕颜色、范围和方向，也不能替代实际拍照上传质量测试。
+- 设备连接 Wi-Fi，MQTT 连接并完成激活，状态从 `starting` 进入 `idle`。
+  本次新固件日志未出现旧固件的 `RTCIO number error`，也未出现
+  `cam_hal: EV-EOF-OVF`。
+- 当前仍待做：肉眼屏幕验收、按键/录音/播放、实际拍照与连续拍照、
+  拍照和语音并行，以及电池/充电电路验证。刷写和启动验证已完成，
+  不能把这些未做的项目标记为通过。
 
 ### 已验证的 CAM 构建结果
 
