@@ -271,6 +271,26 @@ python -m esptool --chip esp32s3 --port /dev/cu.usbserial-10 --baud 115200 \
   合并固件 SHA-256：
   `7ff408eaf109863da77aea1ec4dbf28761856f0e95e2ded90417bd131942da72`。
 
+### 自建服务端接入（2026-10-04）
+
+- 服务端项目位于 `coding:/home/hulei/projects/tokenone_xiaozhiserver`，
+  智控台为 `http://192.168.10.38:8002`，OTA 为
+  `http://192.168.10.38:8002/xiaozhi/ota/`，WebSocket 为
+  `ws://192.168.10.38:8000/xiaozhi/v1/`。
+- 设备原先保存的 `wifi:ota_url` 缺少末尾 `/`。该路径返回 HTTP 200
+  但正文为资源不存在的错误 JSON，缺少协议配置，设备因而沿用旧 MQTT 配置。
+- 经用户授权通过 USB 修正该 NVS 字符串及对应 CRC，仅重写 `0x9000`
+  所在 4 KB 扇区；全 NVS 回读与预期结果完全一致，其他配置保留，未重新烧录应用。
+- 修改前配置备份：
+  `/Users/hulei/Projects/xiaozhi/device-backups/2026-10-04-cam/nvs-before-custom-ota-fix.bin`。
+  修改清单及校验值保存在同目录 `custom-ota-fix-manifest.json`。
+- 重启已取得自建 OTA 的 WebSocket 配置并完成激活。服务端日志确认设备
+  `1c:29:04:31:16:ec` 的 WebSocket 握手、Opus 参数和五项设备工具注册
+  （包括 `self.camera.take_photo`）；实际语音交互及串口回复已观察到。
+  自建视觉接口实际拍照请求、断线重连和长时间对话仍需验证。
+- 本次改动是设备持久配置；现有本地固件的编译默认 OTA 地址仍为原地址。
+  保留 NVS 刷写应用会继续使用自建地址，清空 NVS 后需重新填写。
+
 ### 已验证的 CAM 构建结果
 
 原版和诊断补丁均使用规范入口：
