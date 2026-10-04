@@ -263,8 +263,13 @@ python -m esptool --chip esp32s3 --port /dev/cu.usbserial-10 --baud 115200 \
   `main/boards/bread-compact-wifi-s3cam/config.json` 将
   `camera_vflip` 改为 `true`，`camera_hmirror` 仍为 `false`。
 - 已重新构建并仅刷写应用分区；启动日志确认 `Camera sensor` 报告
-  `hmirror=0, vflip=1`，相机和联网初始化正常。仍需以实际拍照画面确认
-  上下方向已经恢复。
+  `hmirror=0, vflip=1`，相机和联网初始化正常。用户已于 2026-10-04
+  完成实拍复测，确认上下方向已经恢复。
+- 方向修正后的本地固件：应用 `build/xiaozhi.bin`，合并固件
+  `build/merged-binary.bin`。应用 SHA-256：
+  `b833eec544da150fa8ccfd3f863b75daff35148b42d51c78ad3bd69909fb2e86`；
+  合并固件 SHA-256：
+  `7ff408eaf109863da77aea1ec4dbf28761856f0e95e2ded90417bd131942da72`。
 
 ### 已验证的 CAM 构建结果
 
